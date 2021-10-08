@@ -8,6 +8,14 @@
 [![Solana documentation](https://docs.rs/solana-core/badge.svg)](https://docs.rs/solana-core)
 [![Build status](https://badge.buildkite.com/8cc350de251d61483db98bdfc895b9ea0ac8ffa4a32ee850ed.svg?branch=master)](https://buildkite.com/solana-labs/solana/builds?branch=master)
 [![codecov](https://codecov.io/gh/solana-labs/solana/branch/master/graph/badge.svg)](https://codecov.io/gh/solana-labs/solana)
+# Debug WIP
+To start with debug support (debugger branch)
+```bash
+$ cd validator
+$ cargo build
+$ ./solana-test-validator --reset --no-bpf-jit
+```
+
 
 # Building
 
