@@ -25,8 +25,8 @@ $ npm run start
 ```bash
 $ cd dist/program
 $ bpf-unknown-none-gdb helloworld.so
-$ set disassemble-next-line on
-$ target remote:9001
+(gdb) set disassemble-next-line on
+(gdb) target remote:9001
 ```
 
 
