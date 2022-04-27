@@ -22,6 +22,7 @@ struct Config<'a> {
     bpf_out_dir: Option<PathBuf>,
     bpf_sdk: PathBuf,
     bpf_tools_version: &'a str,
+    debug_info: bool,
     dump: bool,
     features: Vec<String>,
     generate_child_script_on_failure: bool,
@@ -45,6 +46,7 @@ impl Default for Config<'_> {
                 .join("bpf"),
             bpf_out_dir: None,
             bpf_tools_version: "(unknown)",
+            debug_info: false,
             dump: false,
             features: vec![],
             generate_child_script_on_failure: false,
@@ -523,6 +525,10 @@ fn build_bpf_package(config: &Config, target_directory: &Path, package: &cargo_m
         );
     };
 
+    if config.debug_info {
+        env::set_var("RUSTFLAGS", "-g");
+    }
+
     let cargo_build = PathBuf::from("cargo");
     let mut cargo_build_args = vec![
         "+bpf",
@@ -567,6 +573,7 @@ fn build_bpf_package(config: &Config, target_directory: &Path, package: &cargo_m
 
     if let Some(program_name) = program_name {
         let program_unstripped_so = target_build_directory.join(&format!("{}.so", program_name));
+        let program_debug_info = bpf_out_dir.join(&format!("{}.dbg", program_name));
         let program_dump = bpf_out_dir.join(&format!("{}-dump.txt", program_name));
         let program_so = bpf_out_dir.join(&format!("{}.so", program_name));
         let program_keypair = bpf_out_dir.join(&format!("{}-keypair.json", program_name));
@@ -616,6 +623,28 @@ fn build_bpf_package(config: &Config, target_directory: &Path, package: &cargo_m
             let output = spawn(
                 &config.bpf_sdk.join("scripts").join("strip.sh"),
                 &[&program_unstripped_so, &program_so],
+                config.generate_child_script_on_failure,
+            );
+            if config.verbose {
+                println!("{}", output);
+            }
+        }
+
+        if config.debug_info && file_older_or_missing(&program_unstripped_so, &program_debug_info) {
+            #[cfg(windows)]
+            let output = spawn(
+                &llvm_bin.join("llvm-objcopy"),
+                &[
+                    "--only-keep-debug".as_ref(),
+                    program_unstripped_so.as_os_str(),
+                    program_debug_info.as_os_str(),
+                ],
+                config.generate_child_script_on_failure,
+            );
+            #[cfg(not(windows))]
+            let output = spawn(
+                &config.bpf_sdk.join("scripts").join("debug_info.sh"),
+                &[&program_unstripped_so, &program_debug_info],
                 config.generate_child_script_on_failure,
             );
             if config.verbose {
@@ -746,6 +775,12 @@ fn main() {
                 .last(true),
         )
         .arg(
+            Arg::new("debug-info")
+                .long("debug-info")
+                .takes_value(false)
+                .help("Extract debug info from ELF on success"),
+        )
+        .arg(
             Arg::new("dump")
                 .long("dump")
                 .takes_value(false)
@@ -835,6 +870,7 @@ fn main() {
             }
         }),
         bpf_tools_version,
+        debug_info: matches.is_present("debug-info"),
         dump: matches.is_present("dump"),
         features: matches.values_of_t("features").ok().unwrap_or_default(),
         generate_child_script_on_failure: matches.is_present("generate_child_script_on_failure"),
