@@ -157,6 +157,14 @@ executing it in the virtual machine.",
                 .value_name("PORT")
                 .default_value("9001"),
         )
+      .arg(
+            Arg::new("host")
+                .help("Port to use for the connection with a remote debugger")
+                .long("host")
+                .takes_value(true)
+                .value_name("HOST")
+                .default_value("127.0.0.1"),
+        )
         .arg(
             Arg::new("profile")
                 .help("Output profile to 'profile.dot' file using tracing instrumentation")
@@ -310,8 +318,9 @@ executing it in the virtual machine.",
     let start_time = Instant::now();
     let result = if matches.value_of("use").unwrap() == "debugger" {
         let mut interpreter = Interpreter::new(&mut vm, &mut instruction_meter).unwrap();
+        let host = matches.value_of("host").unwrap();
         let port = matches.value_of("port").unwrap().parse::<u16>().unwrap();
-        debugger::execute(&mut interpreter, port)
+        debugger::execute(&mut interpreter, host, port)
     } else if matches.value_of("use").unwrap() == "interpreter" {
         vm.execute_program_interpreted(&mut instruction_meter)
     } else {
